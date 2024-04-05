@@ -22,7 +22,7 @@
   </link>
  
    <gazebo reference="base_link">
-    <material>Gazebo/DarkBlue</material>
+    <material>Gazebo/Black</material>
   </gazebo>
 
   <link name="base_footprint"/>
@@ -56,7 +56,7 @@
   </link>
 
     <gazebo reference="left_wheel">
-    <material>Gazebo/DarkRed</material>
+    <material>Gazebo/Red</material>
   </gazebo>
 
   <joint name="left_wheel_joint" type="continuous">
@@ -88,7 +88,7 @@
 
 
   <gazebo reference="right_wheel">
-    <material>Gazebo/DarkRed</material>
+    <material>Gazebo/Red</material>
   </gazebo>
 
   <joint name="right_wheel_joint" type="continuous">
@@ -120,7 +120,7 @@
   </link>
 
   <gazebo reference="front_caster">
-    <material>Gazebo/DarGrey</material>
+    <material>Gazebo/DarkGrey</material>
   </gazebo>
 
   <joint name="front_caster_joint" type="fixed">
