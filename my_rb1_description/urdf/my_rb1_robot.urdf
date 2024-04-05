@@ -97,6 +97,23 @@
     <origin xyz="0.0 -0.2 -0.15" rpy="1.5708 0 0"/>
     <axis xyz="0 0 1"/> <!-- Assuming the wheel rotates around the z-axis -->
   </joint>
+
+  <!-- Differential Drive plugin -->
+  <gazebo>
+    <plugin filename="libgazebo_ros_diff_drive.so" name="differential_drive_controller">
+        <alwaysOn>true</alwaysOn> <!-- This means the plugin is always active -->
+        <updateRate>20</updateRate> <!-- How often the plugin updates, in Hz -->
+        <leftJoint>left_wheel_joint</leftJoint> <!-- The joint name for the left wheel -->
+        <rightJoint>right_wheel_joint</rightJoint> <!-- The joint name for the right wheel -->
+        <wheelSeparation>0.4</wheelSeparation> <!-- The distance between the midpoints of the two wheels -->
+        <wheelDiameter>0.05</wheelDiameter> <!-- The diameter of the wheels -->
+        <torque>10</torque> <!-- The amount of torque applied to the wheels -->
+        <commandTopic>/cmd_vel</commandTopic> <!-- The ROS topic the plugin subscribes to for velocity commands -->
+        <odometryTopic>odom</odometryTopic> <!-- The ROS topic where the plugin publishes odometry information -->
+        <odometryFrame>odom</odometryFrame> <!-- The name of the odometry frame -->
+        <robotBaseFrame>base_link</robotBaseFrame> <!-- The name of the robot base frame -->
+    </plugin>
+  </gazebo>
   
   <!-- Caster wheels -->
   <link name="front_caster">
@@ -187,10 +204,6 @@
     </inertial>
   </link>
 
-  <gazebo reference="front_laser">
-    <material>Gazebo/Black</material>
-  </gazebo>
-
   <joint name="front_laser_joint" type="fixed">
     <parent link="base_link"/>
     <child link="front_laser"/>
@@ -199,6 +212,34 @@
 
   <gazebo reference="front_laser">
     <material>Gazebo/Black</material>
+    <sensor type="ray" name="head_hokuyo_sensor">
+        <pose>0 0 0 0 0 0</pose> <!-- The position and orientation of the sensor. -->
+        <visualize>true</visualize> <!-- Whether to show the laser beams in Gazebo. -->
+        <update_rate>20</update_rate> <!-- Frequency of data publication. -->
+        <ray>
+        <scan>
+            <horizontal>
+            <samples>720</samples> <!-- Number of points in one laser scan. -->
+            <resolution>1</resolution> <!-- The angular resolution of the laser scan. -->
+            <min_angle>-1.570796</min_angle> <!-- Minimum angle of scanning. -->
+            <max_angle>1.570796</max_angle> <!-- Maximum angle of scanning. -->
+            </horizontal>
+        </scan>
+        <range>
+            <min>0.20</min> <!-- Minimum distance the laser can detect. -->
+            <max>10.0</max> <!-- Maximum distance the laser can detect. -->
+            <resolution>0.01</resolution> <!-- Resolution of the range readings. -->
+        </range>
+        <noise>
+            <type>gaussian</type> <!-- The type of noise model. -->
+            <mean>0.0</mean> <!-- The mean value for the Gaussian noise. -->
+            <stddev>0.01</stddev> <!-- The standard deviation for the Gaussian noise. -->
+        </noise>
+        </ray>
+        <plugin name="gazebo_ros_head_hokuyo_controller" filename="libgazebo_ros_laser.so">
+        <topicName>/scan</topicName> <!-- Topic name to publish the laser scan data. -->
+        <frameName>front_laser</frameName> <!-- The reference frame for laser data. -->
+        </plugin>
+    </sensor> 
   </gazebo>
-
 </robot>
