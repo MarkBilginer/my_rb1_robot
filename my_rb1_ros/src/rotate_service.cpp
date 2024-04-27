@@ -1,3 +1,4 @@
+#include <cmath>               // For fabs and other mathematical functions
 #include <my_rb1_ros/Rotate.h> // Include your custom service message
 #include <nav_msgs/Odometry.h> // Include Odometry message
 #include <ros/ros.h>
@@ -24,62 +25,65 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr &msg) {
   if (!yaw_initialized) {
     initial_yaw = current_yaw;
     yaw_initialized = true;
-    ROS_INFO("Initial Yaw set: %f", initial_yaw);
+    // ROS_INFO("Initial Yaw set: %f", initial_yaw);
   }
+}
+
+double normalizeAngle(double angle) {
+  // Use atan2 to compute the angle in a circle and ensure it is between -π and
+  // π
+  return atan2(sin(angle), cos(angle));
 }
 
 // Callback function for rotate_robot service
 bool rotateRobotCallback(my_rb1_ros::Rotate::Request &req,
                          my_rb1_ros::Rotate::Response &res) {
+  ROS_INFO("Service Requested: Rotate by %d degrees", req.degrees);
+
   if (!yaw_initialized) {
     res.result = "Error: Yaw not initialized.";
     ROS_ERROR("Yaw not initialized.");
     return false;
   }
 
-  // Calculate the target yaw
-  double target_yaw = initial_yaw + (req.degrees * M_PI / 180.0);
+  double degrees_rad = req.degrees * M_PI / 180.0; // Convert degrees to radians
+  double target_yaw = normalizeAngle(
+      current_yaw + degrees_rad); // Ensuring target is within -pi to pi
 
-  // Publish command to rotate the robot
+  double angular_velocity = 0.8; // Control rotation speed
+  if (req.degrees > 0) {
+    angular_velocity = -angular_velocity;
+  }
+
   geometry_msgs::Twist cmd_vel_msg;
-  cmd_vel_msg.angular.z =
-      (req.degrees > 0) ? -0.3 : 0.3; // Example angular velocity for rotation
+  cmd_vel_msg.angular.z = angular_velocity;
+  pub.publish(cmd_vel_msg);
 
-  // Print debug info
-  ROS_INFO("Initial Yaw: %f, Target Yaw: %f", initial_yaw, target_yaw);
-  ROS_INFO("Publishing rotation command: angular velocity = %f",
-           cmd_vel_msg.angular.z);
+  ros::Rate loop_rate(20);
+  double accumulated_rotation = 0.0;
+  double previous_yaw = current_yaw;
 
-  pub.publish(cmd_vel_msg); // Publish initial rotation command
-  ros::Rate loop_rate(20);  // Loop rate of 20 Hz
+  while (ros::ok()) {
+    ros::spinOnce();
+    double delta_yaw = normalizeAngle(current_yaw - previous_yaw);
+    accumulated_rotation += delta_yaw;
 
-  // Wait until the robot reaches the target orientation
-  bool rotation_completed = false; // Flag to track rotation completion
-  while (ros::ok() && !rotation_completed) {
-    ros::spinOnce(); // Allow callbacks to be called
-
-    // Check if the robot's orientation is close to the target_yaw
-    double tolerance = 0.05; // Tolerance for considering the rotation complete
-    if (fabs(current_yaw - target_yaw) < tolerance) {
-      cmd_vel_msg.angular.z = 0.0;
-      pub.publish(cmd_vel_msg); // Publish rotation command to stop the rotation
+    if (fabs(accumulated_rotation) >=
+        fabs(degrees_rad) - 0.05) { // Close to target, with tolerance
+      cmd_vel_msg.angular.z = 0;    // Stop rotation
+      pub.publish(cmd_vel_msg);
       res.result = "Success: Rotation completed";
-      rotation_completed = true; // Flag to track rotation completion
-    } else {
-      loop_rate.sleep();
+      ROS_INFO("Rotation completed successfully.");
+      return true;
     }
+
+    previous_yaw = current_yaw;
+    loop_rate.sleep();
   }
 
-  // If the rotation is not completed within the loop, update res.result
-  // accordingly
-  if (!rotation_completed) {
-    res.result = "Error: Rotation failed or timed out";
-    ROS_ERROR("Rotation failed or timed out");
-  } else {
-    ROS_INFO("Rotation completed successfully");
-  }
-
-  return true;
+  res.result = "Error: Rotation failed or timed out";
+  ROS_ERROR("Rotation failed or timed out");
+  return false;
 }
 
 int main(int argc, char **argv) {
@@ -93,6 +97,8 @@ int main(int argc, char **argv) {
   // Create a ROS service to rotate the robot
   ros::ServiceServer service =
       nh.advertiseService("/rotate_robot", rotateRobotCallback);
+
+  ROS_INFO("Service Ready: /rotate_robot");
 
   ros::spin();
 
